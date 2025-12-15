@@ -1,5 +1,3 @@
-import java.util.*;
-
 public class Process {
     String name;
     int arrivalTime;
@@ -9,8 +7,6 @@ public class Process {
     int completionTime;
     int waitingTime;
     int turnaroundTime;
-    int quantum;
-    List<Integer> quantumHistory = new ArrayList<>();
 
     public Process(String name, int arrivalTime, int burstTime, int priority) {
         this.name = name;

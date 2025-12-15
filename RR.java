@@ -10,7 +10,7 @@ public class RR {
         this.contextSwitch = contextSwitch;
         this.timeQuantum = timeQuantum;
         for (Process p : inputProcesses) {
-            this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority, p.quantum));
+            this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
         }
     }
 
