@@ -11,6 +11,7 @@ class Process {
     int turnaroundTime;
     int tempArrivalTime;
 
+
     public Process(String name, int arrivalTime, int burstTime, int priority) {
         this.name = name;
         this.arrivalTime = arrivalTime;
@@ -21,6 +22,11 @@ class Process {
         this.completionTime = 0;
         this.waitingTime = 0;
         this.turnaroundTime = 0;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 }
 
@@ -63,84 +69,68 @@ class AGProcess extends Process {
 }
 
 class SJFScheduler {
-    List<Process> processes = new ArrayList<>();
-    List<Process> executionOrder = new ArrayList<>();
-    int contextSwitch;
-
-    public SJFScheduler(List<Process> processes, int contextSwitch) {
-        this.contextSwitch = contextSwitch;
-        for (Process p : processes) {
-            this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
-        }
-    }
-
-    public void execute() {
+    public static void schedule(List<Process> processes, int contextSwitch) {
         int n = processes.size();
         int completed = 0;
         int time = 0;
+
+        List<String> executionOrder = new ArrayList<>();
         Process running = null;
 
         while (completed < n) {
-            // Build ready queue
+            // 1. Build ready queue
             List<Process> ready = new ArrayList<>();
             for (Process p : processes) {
                 if (p.arrivalTime <= time && p.remainingTime > 0) {
                     ready.add(p);
                 }
             }
-            // CPU idle
+            // 2. CPU idle
             if (ready.isEmpty()) {
                 time++;
                 continue;
             }
-            // Pick shortest remaining time
+            // 3. Pick shortest remaining time
             ready.sort(Comparator.comparingInt((Process p) -> p.remainingTime).thenComparingInt(p -> p.arrivalTime));
             Process next = ready.get(0);
 
-            // Context switch → ONLY advance time
+            // 4. Context switch → ONLY advance time
             if (running != next && !executionOrder.isEmpty()) {
                 time += contextSwitch;
             }
-            // Record execution order
+            // 5. Record execution order
             if (running != next) {
-                executionOrder.add(next);
+                executionOrder.add(next.name);
             }
             running = next;
 
-            // Execute for 1 time unit
+            // 6. Execute for 1 time unit
             running.remainingTime--;
             time++;
 
-            // Completion
+            // 7. Completion
             if (running.remainingTime == 0) {
                 running.completionTime = time;
-                running.turnaroundTime = running.completionTime - running.arrivalTime;
-                running.waitingTime = running.turnaroundTime - running.burstTime;
                 completed++;
                 running = null;
             }
         }
-    }
-
-    public void printResults() {
+        // 9. Turnaround + averages
         double totalWT = 0, totalTAT = 0;
 
-        System.out.print("Execution Order: ");
-        for (Process p : executionOrder) {
-            System.out.print(p.name + " ");
-        }
-
-        System.out.println("\nProcess Results:");
         for (Process p : processes) {
-            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d%n",
-                    p.name, p.waitingTime, p.turnaroundTime);
+            p.turnaroundTime = p.completionTime - p.arrivalTime;
+            p.waitingTime = p.turnaroundTime - p.burstTime;
 
             totalWT += p.waitingTime;
             totalTAT += p.turnaroundTime;
+
+            System.out.println(p.name +" | WaitingTime=" + p.waitingTime +" | TurnaroundTime=" + p.turnaroundTime);
         }
 
-        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
-        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
+        System.out.println("\nAverage Waiting Time: " + (totalWT / processes.size()));
+        System.out.println("Average Turnaround Time: " + (totalTAT / processes.size()));
+
     }
 }
 
@@ -202,36 +192,15 @@ class RRScheduler {
             }
         }
     }
-
-    public void printResults() {
-        double totalWT = 0, totalTAT = 0;
-
-        System.out.print("Execution Order: ");
-        for (Process p : executionOrder) {
-            System.out.print(p.name + " ");
-        }
-
-        System.out.println("\nProcess Results:");
-        for (Process p : processes) {
-            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d%n",
-                    p.name, p.waitingTime, p.turnaroundTime);
-
-            totalWT += p.waitingTime;
-            totalTAT += p.turnaroundTime;
-        }
-
-        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
-        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
-    }
 }
 
-class PreemptivePriorityScheduling {
+class preemptivePriorityScheduling {
     List<Process> processes = new ArrayList<>();
     List<Process> executionOrder = new ArrayList<>();
     int agingInterval;
     int contextSwitch;
 
-    public PreemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval, int contextSwitch) {
+    public preemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval , int contextSwitch) {
         this.agingInterval = agingInterval;
         this.contextSwitch = contextSwitch;
         for (Process p : inputProcesses) {
@@ -247,7 +216,8 @@ class PreemptivePriorityScheduling {
                     else if (p1.arrivalTime != p2.arrivalTime)
                         return Integer.compare(p1.arrivalTime, p2.arrivalTime);
                     return p1.name.compareTo(p2.name);
-                });
+                }
+        );
 
         processes.sort(Comparator.comparingInt(p -> p.arrivalTime));
 
@@ -265,7 +235,8 @@ class PreemptivePriorityScheduling {
         while (!queue.isEmpty() || i < processes.size()) {
             Process current = null;
             curName = "Null";
-            if (!queue.isEmpty()) {
+            if (!queue.isEmpty())
+            {
                 current = queue.poll();
                 executionOrder.add(current);
                 curName = current.name;
@@ -327,37 +298,48 @@ class PreemptivePriorityScheduling {
             }
         }
     }
-
-    public void printResults() {
-        double totalWT = 0, totalTAT = 0;
-
+    public void printExecutionOrder() {
         System.out.print("Execution Order: ");
-        String lastProcess = "";
-
+        String lstProcess = "";
         for (Process p : executionOrder) {
-            if (p.name.equals(lastProcess)) {
+            if (p.name.equals(lstProcess)) {
                 continue;
             }
             System.out.print(p.name + " ");
-            lastProcess = p.name;
+            lstProcess = p.name;
         }
+        System.out.println();
+    }
 
-        System.out.println("\nProcess Results:");
+    public void printProcessResults() {
+        System.out.println("Process Results:");
         for (Process p : processes) {
-            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d%n",
-                    p.name, p.waitingTime, p.turnaroundTime);
-            totalWT += p.waitingTime;
-            totalTAT += p.turnaroundTime;
+            System.out.println("Name : " + p.name + " Waiting Time : " + p.waitingTime + " Turnaround Time : " + p.turnaroundTime);
         }
+    }
 
-        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
-        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
+    public void averageWaitingTime() {
+        double totalWaitingTime = 0;
+        for (Process p : processes) {
+            totalWaitingTime += p.waitingTime;
+        }
+        System.out.println("Average Waiting Time: " + Math.round((totalWaitingTime / processes.size()) * 100.0) / 100.0);
+    }
+
+    public void averageTurnaroundTime() {
+        double totalTurnaroundTime = 0;
+        for (Process p : processes) {
+            totalTurnaroundTime += p.turnaroundTime;
+        }
+        System.out.println("Average Turnaround Time: " + Math.round((totalTurnaroundTime / processes.size()) * 100.0) / 100.0);
     }
 }
 
+
+
 class AGScheduler {
 
-    public static void execute(List<AGProcess> processes, int contextSwitch) {
+    public static void schedule(List<AGProcess> processes, int contextSwitch) {
         int time = 0;
         int completed = 0;
         List<String> executionOrder = new ArrayList<>();
@@ -384,6 +366,7 @@ class AGScheduler {
             int quantum = current.quantum;
             int q25 = (int) Math.ceil(quantum * 0.25);
             int q50 = q25 + (int) Math.ceil(quantum * 0.25);
+
 
             while (current.remainingTime > 0 && timeInQuantum < quantum) {
 
@@ -462,7 +445,6 @@ class AGScheduler {
         }
         return best;
     }
-
     // SJF
     private static AGProcess getShortestJob(Queue<AGProcess> queue) {
         AGProcess best = null;
@@ -496,22 +478,20 @@ class AGScheduler {
             compactOrder.add(last);
         }
 
-        System.out.print("Execution Order: ");
-        for (int i = 0; i < compactOrder.size(); i++) {
-            System.out.print(compactOrder.get(i) + " ");
-        }
+        System.out.println("\nExecution Order:");
+        System.out.println(compactOrder);
 
         double totalWT = 0, totalTAT = 0;
         System.out.println("\nProcess Results:");
         for (AGProcess p : processes) {
-            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d | QuantumHistory = %s%n",
-                    p.name, p.waitingTime, p.turnaroundTime, p.quantumHistory);
+            System.out.println(p.name + " | Waiting=" + p.waitingTime + " | Turnaround=" + p.turnaroundTime
+                    + " | QuantumHistory=" + p.quantumHistory);
             totalWT += p.waitingTime;
             totalTAT += p.turnaroundTime;
         }
 
-        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
-        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
+        System.out.println("\nAverage Waiting Time = " + totalWT / processes.size());
+        System.out.println("Average Turnaround Time = " + totalTAT / processes.size());
     }
 }
 
@@ -527,12 +507,12 @@ public class Main {
         System.out.println("=".repeat(80));
 
         String[] otherTests = {
-                "priority_explanation/Other_Schedulers/test_1.json",
-                "priority_explanation/Other_Schedulers/test_2.json",
-                "priority_explanation/Other_Schedulers/test_3.json",
-                "priority_explanation/Other_Schedulers/test_4.json",
-                "priority_explanation/Other_Schedulers/test_5.json",
-                "priority_explanation/Other_Schedulers/test_6.json"
+                "OtherSchedulers/test_1.json",
+                "OtherSchedulers/test_2.json",
+                "OtherSchedulers/test_3.json",
+                "OtherSchedulers/test_4.json",
+                "OtherSchedulers/test_5.json",
+                "OtherSchedulers/test_6.json"
         };
 
         for (String testFile : otherTests) {
@@ -545,12 +525,12 @@ public class Main {
         System.out.println("=".repeat(80));
 
         String[] agTests = {
-                "test_cases_v3/AG/AG_test1.json",
-                "test_cases_v3/AG/AG_test2.json",
-                "test_cases_v3/AG/AG_test3.json",
-                "test_cases_v3/AG/AG_test4.json",
-                "test_cases_v3/AG/AG_test5.json",
-                "test_cases_v3/AG/AG_test6.json"
+                "AG/AG_test1.json",
+                "AG/AG_test2.json",
+                "AG/AG_test3.json",
+                "AG/AG_test4.json",
+                "AG/AG_test5.json",
+                "AG/AG_test6.json"
         };
 
         for (String testFile : agTests) {
@@ -581,22 +561,23 @@ public class Main {
 
             // Test SJF Scheduler
             System.out.println("\n>>> SJF Scheduler:");
-            SJFScheduler sjfScheduler = new SJFScheduler(processes, contextSwitch);
-            sjfScheduler.execute();
-            sjfScheduler.printResults();
+            List<Process> sjfProcesses = copyProcesses(processes);
+            SJFScheduler.schedule(sjfProcesses, contextSwitch);
 
             // Test RR Scheduler
             System.out.println("\n>>> Round Robin Scheduler:");
             RRScheduler rrScheduler = new RRScheduler(processes, contextSwitch, rrQuantum);
             rrScheduler.execute();
-            rrScheduler.printResults();
+            printRRResults(rrScheduler);
 
             // Test Priority Scheduler
             System.out.println("\n>>> Preemptive Priority Scheduler:");
-            PreemptivePriorityScheduling priorityScheduler = new PreemptivePriorityScheduling(processes, agingInterval,
-                    contextSwitch);
+            preemptivePriorityScheduling priorityScheduler = new preemptivePriorityScheduling(processes, agingInterval , contextSwitch);
             priorityScheduler.execute();
-            priorityScheduler.printResults();
+            priorityScheduler.printExecutionOrder();
+            priorityScheduler.printProcessResults();
+            priorityScheduler.averageWaitingTime();
+            priorityScheduler.averageTurnaroundTime();
 
         } catch (Exception e) {
             System.out.println("Error reading test file: " + filename);
@@ -618,7 +599,7 @@ public class Main {
             List<AGProcess> processes = parseAGProcesses(content);
 
             System.out.println("\n>>> AG Scheduler:");
-            AGScheduler.execute(processes, contextSwitch);
+            AGScheduler.schedule(processes, contextSwitch);
 
         } catch (Exception e) {
             System.out.println("Error reading test file: " + filename);
@@ -681,13 +662,11 @@ public class Main {
 
     private static String extractValue(String json, String key) {
         int keyPos = json.indexOf("\"" + key + "\"");
-        if (keyPos == -1)
-            return "";
+        if (keyPos == -1) return "";
 
         int colonPos = json.indexOf(":", keyPos);
         int commaPos = json.indexOf(",", colonPos);
-        if (commaPos == -1)
-            commaPos = json.length();
+        if (commaPos == -1) commaPos = json.length();
 
         String value = json.substring(colonPos + 1, commaPos).trim();
         return value.replaceAll("\"", "").trim();
@@ -695,21 +674,43 @@ public class Main {
 
     private static int extractInt(String json, String key) {
         String value = extractValue(json, key);
-        if (value.isEmpty())
-            return 0;
+        if (value.isEmpty()) return 0;
         return Integer.parseInt(value);
     }
 
     private static int findMatchingBracket(String str, int start) {
         int count = 1;
         for (int i = start + 1; i < str.length(); i++) {
-            if (str.charAt(i) == '[')
-                count++;
-            if (str.charAt(i) == ']')
-                count--;
-            if (count == 0)
-                return i;
+            if (str.charAt(i) == '[') count++;
+            if (str.charAt(i) == ']') count--;
+            if (count == 0) return i;
         }
         return str.length();
+    }
+
+    private static List<Process> copyProcesses(List<Process> original) {
+        List<Process> copy = new ArrayList<>();
+        for (Process p : original) {
+            copy.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
+        }
+        return copy;
+    }
+
+    private static void printRRResults(RRScheduler scheduler) {
+        System.out.print("Execution Order: ");
+        for (Process p : scheduler.executionOrder) {
+            System.out.print(p.name + " ");
+        }
+        System.out.println("\n");
+
+        double totalWT = 0, totalTAT = 0;
+        for (Process p : scheduler.processes) {
+            System.out.println(p.name + " | WaitingTime=" + p.waitingTime + " | TurnaroundTime=" + p.turnaroundTime);
+            totalWT += p.waitingTime;
+            totalTAT += p.turnaroundTime;
+        }
+
+        System.out.println("\nAverage Waiting Time: " + (totalWT / scheduler.processes.size()));
+        System.out.println("Average Turnaround Time: " + (totalTAT / scheduler.processes.size()));
     }
 }
