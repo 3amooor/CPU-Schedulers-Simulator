@@ -230,16 +230,25 @@ class preemptivePriorityScheduling {
 
         String lastProcess = "";
         List<Process> arrivedProcesses = new ArrayList<>();
+        String curName = "";
 
-        while (!queue.isEmpty()) {
+        while (!queue.isEmpty() || i < processes.size()) {
+            Process current = null;
+            curName = "Null";
+            if (!queue.isEmpty())
+            {
+                current = queue.poll();
+                executionOrder.add(current);
+                curName = current.name;
+            }
+            if (current != null && lastProcess.isEmpty())
+                lastProcess = current.name;
+            else if (!lastProcess.equals(curName) && !lastProcess.equals("Null")) {
+                lastProcess = curName;
+                if (!curName.equals("Null")) {
+                    queue.add(current);
+                }
 
-            Process current = queue.poll();
-            executionOrder.add(current);
-            if (lastProcess.isEmpty())
-                lastProcess = current.name;
-            else if (!lastProcess.equals(current.name)) {
-                lastProcess = current.name;
-                queue.add(current);
                 for (int j = 0; j < contextSwitch; j++) {
                     currentTime++;
                     arrivedProcesses = new ArrayList<>(queue);
@@ -260,7 +269,8 @@ class preemptivePriorityScheduling {
                 continue;
             }
             currentTime++;
-            current.remainingTime--;
+            if (current != null)
+                current.remainingTime--;
 
             arrivedProcesses = new ArrayList<>(queue);
             queue.clear();
@@ -276,6 +286,8 @@ class preemptivePriorityScheduling {
                 i++;
             }
 
+            if (current == null)
+                continue;
             if (current.remainingTime > 0) {
                 current.tempArrivalTime = currentTime;
                 queue.add(current);
@@ -322,6 +334,8 @@ class preemptivePriorityScheduling {
         System.out.println("Average Turnaround Time: " + Math.round((totalTurnaroundTime / processes.size()) * 100.0) / 100.0);
     }
 }
+
+
 
 class AGScheduler {
 
