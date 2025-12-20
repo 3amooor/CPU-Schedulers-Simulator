@@ -7,10 +7,13 @@ public class Process {
     int completionTime;
     int waitingTime;
     int turnaroundTime;
+    int tempArrivalTime;
+
 
     public Process(String name, int arrivalTime, int burstTime, int priority) {
         this.name = name;
         this.arrivalTime = arrivalTime;
+        this.tempArrivalTime = arrivalTime;
         this.burstTime = burstTime;
         this.remainingTime = burstTime;
         this.priority = priority;
