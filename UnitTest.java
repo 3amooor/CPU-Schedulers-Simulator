@@ -9,10 +9,12 @@ class Process {
     int completionTime;
     int waitingTime;
     int turnaroundTime;
+    int tempArrivalTime;
 
     public Process(String name, int arrivalTime, int burstTime, int priority) {
         this.name = name;
         this.arrivalTime = arrivalTime;
+        this.tempArrivalTime = arrivalTime;
         this.burstTime = burstTime;
         this.remainingTime = burstTime;
         this.priority = priority;
@@ -195,16 +197,27 @@ class preemptivePriorityScheduling {
     List<Process> processes = new ArrayList<>();
     List<Process> executionOrder = new ArrayList<>();
     int agingInterval;
+    int contextSwitch;
 
-    public preemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval) {
+    public preemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval , int contextSwitch) {
         this.agingInterval = agingInterval;
+        this.contextSwitch = contextSwitch;
         for (Process p : inputProcesses) {
             this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
         }
     }
 
     public void execute() {
-        PriorityQueue<Process> queue = new PriorityQueue<>(Comparator.comparingInt(p -> p.priority));
+        PriorityQueue<Process> queue = new PriorityQueue<>(
+                (p1, p2) -> {
+                    if (p1.priority != p2.priority)
+                        return Integer.compare(p1.priority, p2.priority);
+                    else if (p1.arrivalTime != p2.arrivalTime)
+                        return Integer.compare(p1.arrivalTime, p2.arrivalTime);
+                    return p1.name.compareTo(p2.name);
+                }
+        );
+
         processes.sort(Comparator.comparingInt(p -> p.arrivalTime));
 
         int currentTime = processes.getFirst().arrivalTime;
@@ -214,18 +227,57 @@ class preemptivePriorityScheduling {
             i++;
         }
 
-        while (!queue.isEmpty()) {
-            Process current = queue.poll();
-            executionOrder.add(current);
+        String lastProcess = "";
+        List<Process> arrivedProcesses = new ArrayList<>();
+        String curName = "";
 
-            currentTime++;
-            current.remainingTime--;
-
-            // Aging mechanism
-            for (Process p : queue) {
-                if (currentTime - p.arrivalTime >= agingInterval) {
-                    p.priority = Math.max(0, p.priority - 1); // Increase priority
+        while (!queue.isEmpty() || i < processes.size()) {
+            Process current = null;
+            curName = "Null";
+            if (!queue.isEmpty())
+            {
+                current = queue.poll();
+                executionOrder.add(current);
+                curName = current.name;
+            }
+            if (current != null && lastProcess.isEmpty())
+                lastProcess = current.name;
+            else if (!lastProcess.equals(curName) && !lastProcess.equals("Null")) {
+                lastProcess = curName;
+                if (!curName.equals("Null")) {
+                    queue.add(current);
                 }
+
+                for (int j = 0; j < contextSwitch; j++) {
+                    currentTime++;
+                    arrivedProcesses = new ArrayList<>(queue);
+                    queue.clear();
+                    for (Process p : arrivedProcesses) {
+                        if ((currentTime - p.tempArrivalTime) % agingInterval == 0) {
+                            p.priority = Math.max(1, p.priority - 1);
+                        }
+                        queue.add(p);
+                    }
+
+                    while (i < processes.size() && processes.get(i).arrivalTime == currentTime) {
+                        queue.add(processes.get(i));
+                        i++;
+                    }
+                }
+
+                continue;
+            }
+            currentTime++;
+            if (current != null)
+                current.remainingTime--;
+
+            arrivedProcesses = new ArrayList<>(queue);
+            queue.clear();
+            for (Process p : arrivedProcesses) {
+                if ((currentTime - p.tempArrivalTime) % agingInterval == 0) {
+                    p.priority = Math.max(1, p.priority - 1);
+                }
+                queue.add(p);
             }
 
             while (i < processes.size() && processes.get(i).arrivalTime == currentTime) {
@@ -233,7 +285,10 @@ class preemptivePriorityScheduling {
                 i++;
             }
 
+            if (current == null)
+                continue;
             if (current.remainingTime > 0) {
+                current.tempArrivalTime = currentTime;
                 queue.add(current);
             } else {
                 current.completionTime = currentTime;
@@ -242,21 +297,24 @@ class preemptivePriorityScheduling {
             }
         }
     }
-
     public void printExecutionOrder() {
         System.out.print("Execution Order: ");
+        String lstProcess = "";
         for (Process p : executionOrder) {
+            if (p.name.equals(lstProcess)) {
+                continue;
+            }
             System.out.print(p.name + " ");
+            lstProcess = p.name;
         }
         System.out.println();
     }
 
     public void printProcessResults() {
-        System.out.println("Process Results:\n");
+        System.out.println("Process Results:");
         for (Process p : processes) {
-            System.out.println("Name :" + p.name + "Waiting Time :" + p.waitingTime + " Turnaround Time :" + p.turnaroundTime);
+            System.out.println("Name : " + p.name + " Waiting Time : " + p.waitingTime + " Turnaround Time : " + p.turnaroundTime);
         }
-        System.out.println();
     }
 
     public void averageWaitingTime() {
@@ -264,7 +322,7 @@ class preemptivePriorityScheduling {
         for (Process p : processes) {
             totalWaitingTime += p.waitingTime;
         }
-        System.out.println("Average Waiting Time: " + (totalWaitingTime / processes.size()));
+        System.out.println("Average Waiting Time: " + Math.round((totalWaitingTime / processes.size()) * 100.0) / 100.0);
     }
 
     public void averageTurnaroundTime() {
@@ -272,7 +330,7 @@ class preemptivePriorityScheduling {
         for (Process p : processes) {
             totalTurnaroundTime += p.turnaroundTime;
         }
-        System.out.println("Average Turnaround Time: " + (totalTurnaroundTime / processes.size()));
+        System.out.println("Average Turnaround Time: " + Math.round((totalTurnaroundTime / processes.size()) * 100.0) / 100.0);
     }
 }
 
@@ -511,7 +569,7 @@ public class UnitTest {
             
             // Test Priority Scheduler
             System.out.println("\n>>> Preemptive Priority Scheduler:");
-            preemptivePriorityScheduling priorityScheduler = new preemptivePriorityScheduling(processes, agingInterval);
+            preemptivePriorityScheduling priorityScheduler = new preemptivePriorityScheduling(processes, agingInterval, contextSwitch);
             priorityScheduler.execute();
             priorityScheduler.printExecutionOrder();
             priorityScheduler.printProcessResults();
