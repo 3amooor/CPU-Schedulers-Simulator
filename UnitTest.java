@@ -445,7 +445,7 @@ public class UnitTest {
         System.out.println("TESTING OTHER SCHEDULERS (SJF, RR, Priority)");
         System.out.println("=".repeat(80));
         
-        String[] otherTests = {
+        String[] otherTests = { // Enter the Directory of your test files here
             "OtherSchedulers/test_1.json",
             "OtherSchedulers/test_2.json",
             "OtherSchedulers/test_3.json",
@@ -463,7 +463,7 @@ public class UnitTest {
         System.out.println("TESTING AG SCHEDULER");
         System.out.println("=".repeat(80));
         
-        String[] agTests = {
+        String[] agTests = { // Enter the Directory of your AG test files here
             "AG/AG_test1.json",
             "AG/AG_test2.json",
             "AG/AG_test3.json",
