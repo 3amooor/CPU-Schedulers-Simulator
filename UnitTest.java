@@ -276,6 +276,31 @@ class PreemptivePriorityScheduling extends Scheduler {
             }
         }
     }
+    @Override
+    public void printResults() {
+        double totalWT = 0, totalTAT = 0;
+
+        String last = "";
+        System.out.print("Execution Order: ");
+        for (Process p : executionOrder) {
+            if (!p.name.equals(last)) {
+                System.out.print(p.name + " ");
+                last = p.name;
+            }
+        }
+
+        System.out.println("\nProcess Results:");
+        for (Process p : processes) {
+            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d%n",
+                    p.name, p.waitingTime, p.turnaroundTime);
+
+            totalWT += p.waitingTime;
+            totalTAT += p.turnaroundTime;
+        }
+
+        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
+        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
+    }
 }
 
 class AGScheduler {
