@@ -22,129 +22,116 @@ class Process {
         this.waitingTime = 0;
         this.turnaroundTime = 0;
     }
+}
 
-    @Override
-    public String toString() {
-        return name;
+class Scheduler {
+    List<Process> processes = new ArrayList<>();
+    List<Process> executionOrder = new ArrayList<>();
+    int contextSwitch;
+
+    public Scheduler(List<Process> processes, int contextSwitch) {
+        this.contextSwitch = contextSwitch;
+        for (Process p : processes) {
+            this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
+        }
+    }
+
+    public void execute() {
+    }
+
+    public void printResults() {
+        double totalWT = 0, totalTAT = 0;
+
+        System.out.print("Execution Order: ");
+        for (Process p : executionOrder) {
+            System.out.print(p.name + " ");
+        }
+
+        System.out.println("\nProcess Results:");
+        for (Process p : processes) {
+            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d%n",
+                    p.name, p.waitingTime, p.turnaroundTime);
+
+            totalWT += p.waitingTime;
+            totalTAT += p.turnaroundTime;
+        }
+
+        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
+        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
     }
 }
 
 class AGProcess extends Process {
     int quantum;
-    int initialQuantum;
-    List<Integer> quantumHistory;
-    boolean inQueue = false;
+    List<Integer> quantumHistory = new ArrayList<>();
 
     public AGProcess(String name, int arrivalTime, int burstTime, int priority, int quantum) {
         super(name, arrivalTime, burstTime, priority);
         this.quantum = quantum;
-        this.initialQuantum = quantum;
-        this.quantumHistory = new ArrayList<>();
-        this.quantumHistory.add(quantum);
-    }
-
-    void finish(int currentTime) {
-        quantum = 0;
-        quantumHistory.add(0);
-        completionTime = currentTime;
-        turnaroundTime = completionTime - arrivalTime;
-        waitingTime = turnaroundTime - burstTime;
-    }
-
-    void quantumExpired() {
-        quantum += 2;
-        quantumHistory.add(quantum);
-    }
-
-    void priorityPreempted(int remainingQuantum) {
-        quantum += (int) Math.ceil(remainingQuantum / 2.0);
-        quantumHistory.add(quantum);
-    }
-
-    void sjfPreempted(int remainingQuantum) {
-        quantum += remainingQuantum;
-        quantumHistory.add(quantum);
     }
 }
 
-class SJFScheduler {
-    public static void schedule(List<Process> processes, int contextSwitch) {
+class SJFScheduler extends Scheduler {
+    public SJFScheduler(List<Process> processes, int contextSwitch) {
+        super(processes, contextSwitch);
+    }
+
+    @Override
+    public void execute() {
         int n = processes.size();
         int completed = 0;
         int time = 0;
-
-        List<String> executionOrder = new ArrayList<>();
         Process running = null;
 
         while (completed < n) {
-            // 1. Build ready queue
+            // Build ready queue
             List<Process> ready = new ArrayList<>();
             for (Process p : processes) {
                 if (p.arrivalTime <= time && p.remainingTime > 0) {
                     ready.add(p);
                 }
             }
-            // 2. CPU idle
+            // CPU idle
             if (ready.isEmpty()) {
                 time++;
                 continue;
             }
-            // 3. Pick shortest remaining time
+            // Pick shortest remaining time
             ready.sort(Comparator.comparingInt((Process p) -> p.remainingTime).thenComparingInt(p -> p.arrivalTime));
             Process next = ready.get(0);
 
-            // 4. Context switch → ONLY advance time
+            // Context switch → ONLY advance time
             if (running != next && !executionOrder.isEmpty()) {
                 time += contextSwitch;
             }
-            // 5. Record execution order
+            // Record execution order
             if (running != next) {
-                executionOrder.add(next.name);
+                executionOrder.add(next);
             }
             running = next;
 
-            // 6. Execute for 1 time unit
+            // Execute for 1 time unit
             running.remainingTime--;
             time++;
 
-            // 7. Completion
+            // Completion
             if (running.remainingTime == 0) {
                 running.completionTime = time;
+                running.turnaroundTime = running.completionTime - running.arrivalTime;
+                running.waitingTime = running.turnaroundTime - running.burstTime;
                 completed++;
                 running = null;
             }
         }
-        // 9. Turnaround + averages
-        double totalWT = 0, totalTAT = 0;
-
-        for (Process p : processes) {
-        p.turnaroundTime = p.completionTime - p.arrivalTime;
-        p.waitingTime = p.turnaroundTime - p.burstTime;
-
-        totalWT += p.waitingTime;
-        totalTAT += p.turnaroundTime;
-
-        System.out.println(p.name +" | WaitingTime=" + p.waitingTime +" | TurnaroundTime=" + p.turnaroundTime);
-        }
-
-        System.out.println("\nAverage Waiting Time: " + (totalWT / processes.size()));
-        System.out.println("Average Turnaround Time: " + (totalTAT / processes.size()));
-
     }
 }
 
-class RRScheduler {
-    List<Process> processes = new ArrayList<>();
-    List<Process> executionOrder = new ArrayList<>();
-    int contextSwitch;
+class RRScheduler extends Scheduler {
     int timeQuantum;
 
     public RRScheduler(List<Process> inputProcesses, int contextSwitch, int timeQuantum) {
-        this.contextSwitch = contextSwitch;
+        super(inputProcesses, contextSwitch);
         this.timeQuantum = timeQuantum;
-        for (Process p : inputProcesses) {
-            this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
-        }
     }
 
     public void execute() {
@@ -193,18 +180,12 @@ class RRScheduler {
     }
 }
 
-class preemptivePriorityScheduling {
-    List<Process> processes = new ArrayList<>();
-    List<Process> executionOrder = new ArrayList<>();
+class PreemptivePriorityScheduling extends Scheduler {
     int agingInterval;
-    int contextSwitch;
 
-    public preemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval , int contextSwitch) {
+    public PreemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval, int contextSwitch) {
+        super(inputProcesses, contextSwitch);
         this.agingInterval = agingInterval;
-        this.contextSwitch = contextSwitch;
-        for (Process p : inputProcesses) {
-            this.processes.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
-        }
     }
 
     public void execute() {
@@ -215,8 +196,7 @@ class preemptivePriorityScheduling {
                     else if (p1.arrivalTime != p2.arrivalTime)
                         return Integer.compare(p1.arrivalTime, p2.arrivalTime);
                     return p1.name.compareTo(p2.name);
-                }
-        );
+                });
 
         processes.sort(Comparator.comparingInt(p -> p.arrivalTime));
 
@@ -234,8 +214,7 @@ class preemptivePriorityScheduling {
         while (!queue.isEmpty() || i < processes.size()) {
             Process current = null;
             curName = "Null";
-            if (!queue.isEmpty())
-            {
+            if (!queue.isEmpty()) {
                 current = queue.poll();
                 executionOrder.add(current);
                 curName = current.name;
@@ -297,168 +276,175 @@ class preemptivePriorityScheduling {
             }
         }
     }
-    public void printExecutionOrder() {
-        System.out.print("Execution Order: ");
-        String lstProcess = "";
-        for (Process p : executionOrder) {
-            if (p.name.equals(lstProcess)) {
-                continue;
-            }
-            System.out.print(p.name + " ");
-            lstProcess = p.name;
-        }
-        System.out.println();
-    }
-
-    public void printProcessResults() {
-        System.out.println("Process Results:");
-        for (Process p : processes) {
-            System.out.println("Name : " + p.name + " Waiting Time : " + p.waitingTime + " Turnaround Time : " + p.turnaroundTime);
-        }
-    }
-
-    public void averageWaitingTime() {
-        double totalWaitingTime = 0;
-        for (Process p : processes) {
-            totalWaitingTime += p.waitingTime;
-        }
-        System.out.println("Average Waiting Time: " + Math.round((totalWaitingTime / processes.size()) * 100.0) / 100.0);
-    }
-
-    public void averageTurnaroundTime() {
-        double totalTurnaroundTime = 0;
-        for (Process p : processes) {
-            totalTurnaroundTime += p.turnaroundTime;
-        }
-        System.out.println("Average Turnaround Time: " + Math.round((totalTurnaroundTime / processes.size()) * 100.0) / 100.0);
-    }
 }
 
 class AGScheduler {
 
-    public static void schedule(List<AGProcess> processes, int contextSwitch) {
-        int time = 0;
-        int completed = 0;
+    enum State {
+        FCFS, PRIORITY, SJF
+    }
+
+    public static void execute(List<AGProcess> processes, int contextSwitch) {
+        List<AGProcess> pending = new ArrayList<>(processes);
+        List<AGProcess> readyQueue = new ArrayList<>();
+        List<AGProcess> finished = new ArrayList<>();
         List<String> executionOrder = new ArrayList<>();
-        Queue<AGProcess> readyQueue = new LinkedList<>();
 
-        processes.sort(Comparator.comparingInt(p -> p.arrivalTime));
+        int currentTime = 0;
+        State state = State.FCFS;
+        int timeExecuted = 0;
+        AGProcess currentProcess = null;
 
-        while (completed < processes.size()) {
+        // Sort pending processes by arrival time
+        pending.sort(Comparator.comparingInt(p -> p.arrivalTime));
 
-            for (AGProcess p : processes) {
-                if (p.arrivalTime <= time && p.remainingTime > 0 && !readyQueue.contains(p)) {
-                    readyQueue.add(p);
+        while (!pending.isEmpty() || !readyQueue.isEmpty()) {
+
+            // Add newly arrived processes to ready queue
+            for (int i = 0; i < pending.size(); i++) {
+                if (pending.get(i).arrivalTime <= currentTime) {
+                    readyQueue.add(pending.get(i));
+                    pending.remove(i);
+                    i--;
                 }
             }
 
-            if (readyQueue.isEmpty()) {
-                time++;
-                continue;
-            }
+            if (!readyQueue.isEmpty()) {
+                // FCFS Phase: Execute first 25% of quantum
+                if (state == State.FCFS) {
+                    currentProcess = readyQueue.get(0);
 
-            AGProcess current = readyQueue.poll();
-            int timeInQuantum = 0;
-            
-            int quantum = current.quantum;
-            int q25 = (int) Math.ceil(quantum * 0.25);
-            int q50 = q25 + (int) Math.ceil(quantum * 0.25); 
+                    // Calculate cycle limit for 25% of quantum
+                    int cycleLimit = currentTime + (int) Math.ceil(currentProcess.quantum * 0.25);
+                    executionOrder.add(currentProcess.name);
+                    currentProcess.quantumHistory.add(currentProcess.quantum);
+                    timeExecuted = 0;
 
+                    // Execute for 25% of quantum
+                    while (currentTime < cycleLimit && currentProcess.remainingTime > 0) {
+                        currentTime++;
+                        timeExecuted++;
+                        currentProcess.remainingTime--;
+                    }
 
-            while (current.remainingTime > 0 && timeInQuantum < quantum) {
-                
-                executionOrder.add(current.name);
-                current.remainingTime--;
-                time++;
-                timeInQuantum++;
+                    if (currentProcess.remainingTime == 0) {
+                        completeProcess(currentProcess, currentTime, readyQueue, finished);
+                        state = State.FCFS;
+                    } else {
+                        state = State.PRIORITY;
+                    }
 
-                addNewArrivals(processes, readyQueue, time, current);
+                    // Priority Phase: Check for higher priority preemption (25%-50% of quantum)
+                } else if (state == State.PRIORITY) {
+                    currentProcess = readyQueue.get(0);
+                    AGProcess bestPriority = getBestPriority(readyQueue);
 
-                if (current.remainingTime == 0) {
-                    current.finish(time);
-                    completed++;
-                    break;
-                }
+                    if (bestPriority != currentProcess) {
+                        // Preemption by higher priority process
+                        currentProcess.completionTime = currentTime;
+                        int addedQuantum = (int) Math.ceil((currentProcess.quantum - timeExecuted) / 2.0);
+                        currentProcess.quantum += addedQuantum;
 
-                // Check Priority Phase 
-                if (timeInQuantum >= q25 && timeInQuantum < q50) {
-                    AGProcess bestPriority = getBestPriorityProcess(readyQueue);
-                    if (bestPriority != null && bestPriority.priority < current.priority) {
-                        int remainingQuantum = current.quantum - timeInQuantum;
-                        current.priorityPreempted(remainingQuantum);
-                        readyQueue.add(current);
-                        
+                        // Reorder queue: best priority to front
+                        readyQueue.remove(currentProcess);
                         readyQueue.remove(bestPriority);
-                        current = bestPriority;
-                        
-                        // Reset for new process
-                        timeInQuantum = 0;
-                        quantum = current.quantum;
-                        q25 = (int) Math.ceil(quantum * 0.25);
-                        q50 = q25 + (int) Math.ceil(quantum * 0.25);
-                        
-                        continue; 
-                    }
-                }
+                        readyQueue.add(0, bestPriority);
+                        readyQueue.add(currentProcess);
 
-                // Check SJF Phase 
-                if (timeInQuantum >= q50) {
+                        state = State.FCFS;
+                        timeExecuted = 0;
+
+                    } else {
+                        // No preemption, continue to 50% of quantum
+                        int cycleLimit = currentTime + (int) Math.ceil(currentProcess.quantum * 0.25);
+
+                        while (currentTime < cycleLimit && currentProcess.remainingTime > 0) {
+                            currentTime++;
+                            timeExecuted++;
+                            currentProcess.remainingTime--;
+                        }
+
+                        if (currentProcess.remainingTime == 0) {
+                            completeProcess(currentProcess, currentTime, readyQueue, finished);
+                            state = State.FCFS;
+                        } else {
+                            state = State.SJF;
+                        }
+                    }
+
+                    // SJF Phase: Check for shorter job preemption (50%-100% of quantum)
+                } else if (state == State.SJF) {
+                    currentProcess = readyQueue.get(0);
                     AGProcess shortestJob = getShortestJob(readyQueue);
-                    if (shortestJob != null && shortestJob.remainingTime < current.remainingTime) {
-                        int remainingQuantum = current.quantum - timeInQuantum;
-                        current.sjfPreempted(remainingQuantum);
-                        readyQueue.add(current);
 
+                    if (shortestJob != currentProcess) {
+                        // Preemption by shorter job
+                        currentProcess.completionTime = currentTime;
+                        int addedQuantum = currentProcess.quantum - timeExecuted;
+                        currentProcess.quantum += addedQuantum;
+
+                        readyQueue.remove(currentProcess);
                         readyQueue.remove(shortestJob);
-                        current = shortestJob;
+                        readyQueue.add(0, shortestJob);
+                        readyQueue.add(currentProcess);
 
-                        // Reset for new process
-                        timeInQuantum = 0;
-                        quantum = current.quantum;
-                        q25 = (int) Math.ceil(quantum * 0.25);
-                        q50 = q25 + (int) Math.ceil(quantum * 0.25);
+                        state = State.FCFS;
+                    } else {
+                        // Continue executing until quantum expires
+                        int quantumEndTime = currentTime + (currentProcess.quantum - timeExecuted);
 
-                        continue;
+                        currentTime++;
+                        timeExecuted++;
+                        currentProcess.remainingTime--;
+
+                        if (currentProcess.remainingTime == 0) {
+                            completeProcess(currentProcess, currentTime, readyQueue, finished);
+                            state = State.FCFS;
+                        } else if (currentTime >= quantumEndTime) {
+                            // Quantum expired, add 2 to quantum
+                            state = State.FCFS;
+                            currentProcess.completionTime = currentTime;
+                            currentProcess.quantum += 2;
+                            readyQueue.remove(0);
+                            readyQueue.add(currentProcess);
+                        }
                     }
                 }
-            }
-
-            // Quantum Expired 
-            if (current.remainingTime > 0 && timeInQuantum == quantum) {
-                current.quantumExpired();
-                readyQueue.add(current);
+            } else {
+                // CPU idle, advance time
+                currentTime++;
             }
         }
 
-        printResults(processes, executionOrder);
+        printResults(finished, executionOrder);
     }
 
-    private static AGProcess getBestPriorityProcess(Queue<AGProcess> queue) {
-        AGProcess best = null;
-        for (AGProcess p : queue) {
-            if (best == null || p.priority < best.priority) {
-                best = p;
-            }
-        }
-        return best;
+    private static void completeProcess(AGProcess p, int time, List<AGProcess> ready, List<AGProcess> finished) {
+        p.completionTime = time;
+        p.quantum = 0;
+        p.quantumHistory.add(0);
+        p.turnaroundTime = p.completionTime - p.arrivalTime;
+        p.waitingTime = p.turnaroundTime - p.burstTime;
+        ready.remove(p);
+        finished.add(p);
     }
-    // SJF 
-    private static AGProcess getShortestJob(Queue<AGProcess> queue) {
-        AGProcess best = null;
-        for (AGProcess p : queue) {
-            if (best == null || p.remainingTime < best.remainingTime) {
+
+    private static AGProcess getBestPriority(List<AGProcess> ready) {
+        AGProcess best = ready.get(0);
+        for (AGProcess p : ready) {
+            if (p.priority < best.priority)
                 best = p;
-            }
         }
         return best;
     }
 
-    private static void addNewArrivals(List<AGProcess> processes, Queue<AGProcess> readyQueue, int time, AGProcess current) {
-        for (AGProcess p : processes) {
-            if (p.arrivalTime <= time && p.remainingTime > 0 && !readyQueue.contains(p) && p != current) {
-                readyQueue.add(p);
-            }
+    private static AGProcess getShortestJob(List<AGProcess> ready) {
+        AGProcess best = ready.get(0);
+        for (AGProcess p : ready) {
+            if (p.remainingTime < best.remainingTime)
+                best = p;
         }
+        return best;
     }
 
     private static void printResults(List<AGProcess> processes, List<String> order) {
@@ -475,20 +461,24 @@ class AGScheduler {
             compactOrder.add(last);
         }
 
-        System.out.println("\nExecution Order:");
-        System.out.println(compactOrder);
+        System.out.print("Execution Order: ");
+        for (int i = 0; i < compactOrder.size(); i++) {
+            System.out.print(compactOrder.get(i) + " ");
+        }
 
         double totalWT = 0, totalTAT = 0;
         System.out.println("\nProcess Results:");
+        // Sort processes by name for consistent output
+        processes.sort(Comparator.comparing(p -> p.name));
         for (AGProcess p : processes) {
-            System.out.println(p.name + " | Waiting=" + p.waitingTime + " | Turnaround=" + p.turnaroundTime
-                    + " | QuantumHistory=" + p.quantumHistory);
+            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d | QuantumHistory = %s%n",
+                    p.name, p.waitingTime, p.turnaroundTime, p.quantumHistory);
             totalWT += p.waitingTime;
             totalTAT += p.turnaroundTime;
         }
 
-        System.out.println("\nAverage Waiting Time = " + totalWT / processes.size());
-        System.out.println("Average Turnaround Time = " + totalTAT / processes.size());
+        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
+        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
     }
 }
 
@@ -497,217 +487,196 @@ public class UnitTest {
         System.out.println("=".repeat(80));
         System.out.println("CPU SCHEDULERS SIMULATOR - TEST SUITE");
         System.out.println("=".repeat(80));
-        
+
         // Test OtherSchedulers (SJF, RR, Priority)
         System.out.println("\n" + "=".repeat(80));
         System.out.println("TESTING OTHER SCHEDULERS (SJF, RR, Priority)");
         System.out.println("=".repeat(80));
-        
-        String[] otherTests = { // Enter the Directory of your test files here
-            "OtherSchedulers/test_1.json",
-            "OtherSchedulers/test_2.json",
-            "OtherSchedulers/test_3.json",
-            "OtherSchedulers/test_4.json",
-            "OtherSchedulers/test_5.json",
-            "OtherSchedulers/test_6.json"
+
+        String[] otherTests = {
+                "OtherSchedulers/test_1.json",
+                "OtherSchedulers/test_2.json",
+                "OtherSchedulers/test_3.json",
+                "OtherSchedulers/test_4.json",
+                "OtherSchedulers/test_5.json",
+                "OtherSchedulers/test_6.json"
         };
-        
+
         for (String testFile : otherTests) {
             runOtherSchedulersTest(testFile);
         }
-        
+
         // Test AG Scheduler
         System.out.println("\n" + "=".repeat(80));
         System.out.println("TESTING AG SCHEDULER");
         System.out.println("=".repeat(80));
-        
-        String[] agTests = { // Enter the Directory of your AG test files here
-            "AG/AG_test1.json",
-            "AG/AG_test2.json",
-            "AG/AG_test3.json",
-            "AG/AG_test4.json",
-            "AG/AG_test5.json",
-            "AG/AG_test6.json"
+
+        String[] agTests = {
+                "AG/AG_test1.json",
+                "AG/AG_test2.json",
+                "AG/AG_test3.json",
+                "AG/AG_test4.json",
+                "AG/AG_test5.json",
+                "AG/AG_test6.json"
         };
-        
+
         for (String testFile : agTests) {
             runAGSchedulerTest(testFile);
         }
-        
+
         System.out.println("\n" + "=".repeat(80));
         System.out.println("ALL TESTS COMPLETED");
         System.out.println("=".repeat(80));
     }
-    
+
     private static void runOtherSchedulersTest(String filename) {
         try {
             System.out.println("\n" + "-".repeat(80));
             System.out.println("Testing: " + filename);
             System.out.println("-".repeat(80));
-            
+
             // Read JSON file
             String content = new String(java.nio.file.Files.readAllBytes(
-                java.nio.file.Paths.get(filename)));
-            
+                    java.nio.file.Paths.get(filename)));
+
             // Parse JSON manually (simple parsing)
             int contextSwitch = extractInt(content, "contextSwitch");
             int rrQuantum = extractInt(content, "rrQuantum");
             int agingInterval = extractInt(content, "agingInterval");
-            
+
             List<Process> processes = parseProcesses(content);
-            
+
             // Test SJF Scheduler
             System.out.println("\n>>> SJF Scheduler:");
-            List<Process> sjfProcesses = copyProcesses(processes);
-            SJFScheduler.schedule(sjfProcesses, contextSwitch);
-            
+            SJFScheduler sjfScheduler = new SJFScheduler(processes, contextSwitch);
+            sjfScheduler.execute();
+            sjfScheduler.printResults();
+
             // Test RR Scheduler
             System.out.println("\n>>> Round Robin Scheduler:");
             RRScheduler rrScheduler = new RRScheduler(processes, contextSwitch, rrQuantum);
             rrScheduler.execute();
-            printRRResults(rrScheduler);
-            
+            rrScheduler.printResults();
+
             // Test Priority Scheduler
             System.out.println("\n>>> Preemptive Priority Scheduler:");
-            preemptivePriorityScheduling priorityScheduler = new preemptivePriorityScheduling(processes, agingInterval, contextSwitch);
+            PreemptivePriorityScheduling priorityScheduler = new PreemptivePriorityScheduling(processes, agingInterval,
+                    contextSwitch);
             priorityScheduler.execute();
-            priorityScheduler.printExecutionOrder();
-            priorityScheduler.printProcessResults();
-            priorityScheduler.averageWaitingTime();
-            priorityScheduler.averageTurnaroundTime();
-            
+            priorityScheduler.printResults();
+
         } catch (Exception e) {
             System.out.println("Error reading test file: " + filename);
             e.printStackTrace();
         }
     }
-    
+
     private static void runAGSchedulerTest(String filename) {
         try {
             System.out.println("\n" + "-".repeat(80));
             System.out.println("Testing: " + filename);
             System.out.println("-".repeat(80));
-            
+
             // Read JSON file
             String content = new String(java.nio.file.Files.readAllBytes(
-                java.nio.file.Paths.get(filename)));
-            
+                    java.nio.file.Paths.get(filename)));
+
             int contextSwitch = 1; // Default context switch for AG
             List<AGProcess> processes = parseAGProcesses(content);
-            
+
             System.out.println("\n>>> AG Scheduler:");
-            AGScheduler.schedule(processes, contextSwitch);
-            
+            AGScheduler.execute(processes, contextSwitch);
+
         } catch (Exception e) {
             System.out.println("Error reading test file: " + filename);
             e.printStackTrace();
         }
     }
-    
+
     private static List<Process> parseProcesses(String json) {
         List<Process> processes = new ArrayList<>();
-        
+
         // Find processes array
         int processesStart = json.indexOf("\"processes\"");
         int arrayStart = json.indexOf("[", processesStart);
         int arrayEnd = findMatchingBracket(json, arrayStart);
         String processesJson = json.substring(arrayStart + 1, arrayEnd);
-        
+
         // Split by objects
         String[] processObjs = processesJson.split("\\},\\s*\\{");
-        
+
         for (String obj : processObjs) {
             obj = obj.replaceAll("[\\{\\}]", "");
-            
+
             String name = extractValue(obj, "name");
             int arrival = Integer.parseInt(extractValue(obj, "arrival"));
             int burst = Integer.parseInt(extractValue(obj, "burst"));
             int priority = Integer.parseInt(extractValue(obj, "priority"));
-            
+
             processes.add(new Process(name, arrival, burst, priority));
         }
-        
+
         return processes;
     }
-    
+
     private static List<AGProcess> parseAGProcesses(String json) {
         List<AGProcess> processes = new ArrayList<>();
-        
+
         // Find processes array
         int processesStart = json.indexOf("\"processes\"");
         int arrayStart = json.indexOf("[", processesStart);
         int arrayEnd = findMatchingBracket(json, arrayStart);
         String processesJson = json.substring(arrayStart + 1, arrayEnd);
-        
+
         // Split by objects
         String[] processObjs = processesJson.split("\\},\\s*\\{");
-        
+
         for (String obj : processObjs) {
             obj = obj.replaceAll("[\\{\\}]", "");
-            
+
             String name = extractValue(obj, "name");
             int arrival = Integer.parseInt(extractValue(obj, "arrival"));
             int burst = Integer.parseInt(extractValue(obj, "burst"));
             int priority = Integer.parseInt(extractValue(obj, "priority"));
             int quantum = Integer.parseInt(extractValue(obj, "quantum"));
-            
+
             processes.add(new AGProcess(name, arrival, burst, priority, quantum));
         }
-        
+
         return processes;
     }
-    
+
     private static String extractValue(String json, String key) {
         int keyPos = json.indexOf("\"" + key + "\"");
-        if (keyPos == -1) return "";
-        
+        if (keyPos == -1)
+            return "";
+
         int colonPos = json.indexOf(":", keyPos);
         int commaPos = json.indexOf(",", colonPos);
-        if (commaPos == -1) commaPos = json.length();
-        
+        if (commaPos == -1)
+            commaPos = json.length();
+
         String value = json.substring(colonPos + 1, commaPos).trim();
         return value.replaceAll("\"", "").trim();
     }
-    
+
     private static int extractInt(String json, String key) {
         String value = extractValue(json, key);
-        if (value.isEmpty()) return 0;
+        if (value.isEmpty())
+            return 0;
         return Integer.parseInt(value);
     }
-    
+
     private static int findMatchingBracket(String str, int start) {
         int count = 1;
         for (int i = start + 1; i < str.length(); i++) {
-            if (str.charAt(i) == '[') count++;
-            if (str.charAt(i) == ']') count--;
-            if (count == 0) return i;
+            if (str.charAt(i) == '[')
+                count++;
+            if (str.charAt(i) == ']')
+                count--;
+            if (count == 0)
+                return i;
         }
         return str.length();
-    }
-    
-    private static List<Process> copyProcesses(List<Process> original) {
-        List<Process> copy = new ArrayList<>();
-        for (Process p : original) {
-            copy.add(new Process(p.name, p.arrivalTime, p.burstTime, p.priority));
-        }
-        return copy;
-    }
-    
-    private static void printRRResults(RRScheduler scheduler) {
-        System.out.print("Execution Order: ");
-        for (Process p : scheduler.executionOrder) {
-            System.out.print(p.name + " ");
-        }
-        System.out.println("\n");
-        
-        double totalWT = 0, totalTAT = 0;
-        for (Process p : scheduler.processes) {
-            System.out.println(p.name + " | WaitingTime=" + p.waitingTime + " | TurnaroundTime=" + p.turnaroundTime);
-            totalWT += p.waitingTime;
-            totalTAT += p.turnaroundTime;
-        }
-        
-        System.out.println("\nAverage Waiting Time: " + (totalWT / scheduler.processes.size()));
-        System.out.println("Average Turnaround Time: " + (totalTAT / scheduler.processes.size()));
     }
 }
