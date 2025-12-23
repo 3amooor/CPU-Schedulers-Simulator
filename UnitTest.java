@@ -42,9 +42,13 @@ class Scheduler {
     public void printResults() {
         double totalWT = 0, totalTAT = 0;
 
+        String last = "";
         System.out.print("Execution Order: ");
         for (Process p : executionOrder) {
-            System.out.print(p.name + " ");
+            if (!p.name.equals(last)) {
+                System.out.print(p.name + " ");
+                last = p.name;
+            }
         }
 
         System.out.println("\nProcess Results:");
@@ -180,10 +184,10 @@ class RRScheduler extends Scheduler {
     }
 }
 
-class PreemptivePriorityScheduling extends Scheduler {
+class PreemptivePriorityScheduler extends Scheduler {
     int agingInterval;
 
-    public PreemptivePriorityScheduling(List<Process> inputProcesses, int agingInterval, int contextSwitch) {
+    public PreemptivePriorityScheduler(List<Process> inputProcesses, int agingInterval, int contextSwitch) {
         super(inputProcesses, contextSwitch);
         this.agingInterval = agingInterval;
     }
@@ -275,31 +279,6 @@ class PreemptivePriorityScheduling extends Scheduler {
                 current.waitingTime = current.turnaroundTime - current.burstTime;
             }
         }
-    }
-    @Override
-    public void printResults() {
-        double totalWT = 0, totalTAT = 0;
-
-        String last = "";
-        System.out.print("Execution Order: ");
-        for (Process p : executionOrder) {
-            if (!p.name.equals(last)) {
-                System.out.print(p.name + " ");
-                last = p.name;
-            }
-        }
-
-        System.out.println("\nProcess Results:");
-        for (Process p : processes) {
-            System.out.printf("Name: %-5s | WaitingTime = %-5d | TurnaroundTime = %-5d%n",
-                    p.name, p.waitingTime, p.turnaroundTime);
-
-            totalWT += p.waitingTime;
-            totalTAT += p.turnaroundTime;
-        }
-
-        System.out.println("Average Waiting Time = " + Math.round((totalWT / processes.size()) * 100.0) / 100.0);
-        System.out.println("Average Turnaround Time = " + Math.round((totalTAT / processes.size()) * 100.0) / 100.0);
     }
 }
 
@@ -585,7 +564,7 @@ public class UnitTest {
 
             // Test Priority Scheduler
             System.out.println("\n>>> Preemptive Priority Scheduler:");
-            PreemptivePriorityScheduling priorityScheduler = new PreemptivePriorityScheduling(processes, agingInterval,
+            PreemptivePriorityScheduler priorityScheduler = new PreemptivePriorityScheduler(processes, agingInterval,
                     contextSwitch);
             priorityScheduler.execute();
             priorityScheduler.printResults();
